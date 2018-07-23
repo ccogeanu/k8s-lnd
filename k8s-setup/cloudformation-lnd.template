@@ -1,0 +1,263 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  
+  "Description" : "LND devop test",
+
+  "Parameters": {
+    "s3clustersetup": {
+      "Default": "lnd-cluster-setup",
+      "Description" : "S3 bucket holding the setup scripts",
+      "Type": "String",
+    },
+  },
+
+  "Resources" : {
+    "MasterInstance": {
+      "Type": "AWS::EC2::Instance",
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+            "InstallAndRun": ["Install"]
+          },
+          "Install": {
+            "files": {
+              "/etc/yum.repos.d/k8s-s3.repo": {
+                "content": { "Fn::Join" : ["", [
+                   "[local]\n",
+                   "name=Kubernetes local\n",
+                   "baseurl=http://k8s-s3-repo.s3-website-us-west-2.amazonaws.com/$basearch\n",
+                   "enabled=1\n",
+                   "protect=1\n",
+                   "gpgcheck=0\n"
+                ]]},
+                "mode": "000644",
+                "owner": "root",
+                "group": "root" 
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "ImageId": "ami-a9d09ed1",
+        "InstanceType": "t2.medium",
+        "IamInstanceProfile": { "Ref": "NodeInstanceProfile" },
+        "SecurityGroups": [{"Ref":"ClusterSecurityGroup"}],
+        "SourceDestCheck": "false",
+        "KeyName": "devop-lnd",
+        "UserData": { "Fn::Base64" : { "Fn::Join" : [ "", [
+             "#!/bin/bash -xe\n",
+             "yum update -y aws-cfn-bootstrap\n",
+
+             "# Install the files and packages from the metadata\n",
+             "/opt/aws/bin/cfn-init -v ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource MasterInstance ",
+             "         --configsets InstallAndRun ",
+             "         --region ", { "Ref" : "AWS::Region" }, "\n",
+
+             "mkdir /root/k8s-setup\n",
+             "cd /root/k8s-setup\n",
+             "aws s3 cp --recursive s3://lnd-cluster-setup/k8s-setup . \n",
+             "chmod +x form-master.sh\n",
+             "/root/k8s-setup/form-master.sh \"", {"Ref":"AWS::StackId"} , "\" \"", {"Ref":"s3clustersetup"} , "\" > form-master.log 2>&1\n",
+             "echo \"Done! stackName: ", {"Ref":"AWS::StackName"}, " stackId: ", {"Ref": "AWS::StackId"}, "\" >> form-master.log\n",
+
+             "# Signal the status from cfn-init\n",
+             "/opt/aws/bin/cfn-signal -e $? ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource MasterInstance",
+             "         --region ", { "Ref" : "AWS::Region" }, "\n"
+        ]]}}
+      },
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Timeout" : "PT30M"
+        }
+      }
+    },
+    "NodeInstance": {
+      "Type": "AWS::EC2::Instance",
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+            "InstallAndRun": ["Install"]
+          },
+          "Install": {
+            "files": {
+              "/etc/yum.repos.d/k8s-s3.repo": {
+                "content": { "Fn::Join" : ["", [
+                   "[local]\n",
+                   "name=Kubernetes local\n",
+                   "baseurl=http://k8s-s3-repo.s3-website-us-west-2.amazonaws.com/$basearch\n",
+                   "enabled=1\n",
+                   "protect=1\n",
+                   "gpgcheck=0\n"
+                ]]},
+                "mode": "000644",
+                "owner": "root",
+                "group": "root" 
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "ImageId": "ami-a9d09ed1",
+        "InstanceType": "t2.medium",
+        "IamInstanceProfile": { "Ref": "NodeInstanceProfile" },
+        "SecurityGroups": [{"Ref":"ClusterSecurityGroup"}],
+        "SourceDestCheck": "false",
+        "KeyName": "devop-lnd",
+        "UserData": { "Fn::Base64" : { "Fn::Join" : [ "", [
+             "#!/bin/bash -xe\n",
+             "yum update -y aws-cfn-bootstrap\n",
+
+             "# Install the files and packages from the metadata\n",
+             "/opt/aws/bin/cfn-init -v ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource MasterInstance ",
+             "         --configsets InstallAndRun ",
+             "         --region ", { "Ref" : "AWS::Region" }, "\n",
+
+             "mkdir /root/k8s-setup\n",
+             "cd /root/k8s-setup\n",
+             "aws s3 cp --recursive s3://lnd-cluster-setup/k8s-setup . \n",
+             "chmod +x form-node.sh\n",
+             "/root/k8s-setup/form-node.sh \"", {"Ref":"AWS::StackId"} , "\" \"", {"Ref":"s3clustersetup"} , "\" > form-node.log 2>&1\n",
+             "echo \"Done! stackName: ", {"Ref":"AWS::StackName"}, " stackId: ", {"Ref": "AWS::StackId"}, "\" >> form-node.log\n",
+
+             "# Signal the status from cfn-init\n",
+             "/opt/aws/bin/cfn-signal -e $? ",
+             "         --stack ", { "Ref" : "AWS::StackName" },
+             "         --resource NodeInstance",
+             "         --region ", { "Ref" : "AWS::Region" }, "\n"
+        ]]}}
+      },
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Timeout" : "PT30M"
+        }
+      }
+    },
+
+    "NodeRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version" : "2012-10-17",
+          "Statement": [ {
+            "Effect": "Allow",
+            "Principal": {
+              "Service": [ "ec2.amazonaws.com" ]
+            },
+            "Action": [ "sts:AssumeRole" ]
+          } ]
+        },
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyName": "vpc",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                 {
+                   "Effect": "Allow",
+                   "Action": [
+                     "ec2:CreateNetworkInterface",
+                     "ec2:AttachNetworkInterface",
+                     "ec2:DeleteNetworkInterface",
+                     "ec2:DetachNetworkInterface",
+                     "ec2:DescribeNetworkInterfaces",
+                     "ec2:DescribeInstances",
+                     "ec2:ModifyNetworkInterfaceAttribute",
+                     "ec2:AssignPrivateIpAddresses"
+                   ],
+                   "Resource": [
+                     "*"
+                   ]
+                 },
+                 {
+                   "Effect": "Allow",
+                   "Action": "tag:TagResources",
+                   "Resource": "*"
+                 }
+              ]
+            }
+          },
+          {
+            "PolicyName": "ecr",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                    {
+                      "Effect": "Allow",
+                      "Action": [
+                        "ecr:GetAuthorizationToken",
+                        "ecr:BatchCheckLayerAvailability",
+                        "ecr:GetDownloadUrlForLayer",
+                        "ecr:GetRepositoryPolicy",
+                        "ecr:DescribeRepositories",
+                        "ecr:ListImages",
+                        "ecr:DescribeImages",
+                        "ecr:BatchGetImage",
+                        "ecr:InitiateLayerUpload",
+                        "ecr:UploadLayerPart",
+                        "ecr:CompleteLayerUpload",
+                        "ecr:PutImage"
+                      ],
+                      "Resource": "*"
+                     }
+              ]
+            }
+          },
+          {
+            "PolicyName": "s3",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                 {
+                   "Effect": "Allow",
+                   "Action": "s3:*",
+                   "Resource": "*"
+                 }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "NodeInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [{"Ref": "NodeRole"}]
+      }
+    },
+
+    "ClusterSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Cluster security group",
+        "SecurityGroupIngress": [
+          {"IpProtocol" : "tcp", "FromPort" : "6443", "ToPort" : "6443", "CidrIp" : "0.0.0.0/0"},
+          {"IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"},
+          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0"},
+          {"IpProtocol" : "-1", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}
+        ]
+      }
+    }
+  },
+
+  "Outputs": {
+    "MasterNode" : {
+      "Description" : "Master Node IPs",
+      "Value" : { "Fn::Join" : [" : ", [{ "Fn::GetAtt" : [ "MasterInstance", "PublicDnsName" ]}, {"Fn::GetAtt": ["MasterInstance", "PublicIp"]}, {"Fn::GetAtt": ["MasterInstance", "PrivateIp"]}]] }
+    },
+    "Node" : {
+      "Description" : "Node IPs",
+      "Value" : { "Fn::Join" : [" : ", [{ "Fn::GetAtt" : [ "NodeInstance", "PublicDnsName" ]}, {"Fn::GetAtt": ["NodeInstance", "PublicIp"]}, {"Fn::GetAtt": ["NodeInstance", "PrivateIp"]}]] }
+    }
+  }
+}
+
