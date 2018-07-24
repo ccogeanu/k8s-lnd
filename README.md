@@ -8,10 +8,12 @@ The required commands for creating the microservice docker image which will late
   - create a AWS container registry repository named "k8s-lnd-msvc"
   - clone this repository
   - cwd to the microservice directory
-  - run the following
+  - run the following:
+```
 docker build --build-arg SOURCE_LOCATION=./ --no-cache -t k8s-lnd-msvc .
 docker tag k8s-lnd-msvc:latest <your_reg_id>.dkr.ecr.us-west-2.amazonaws.com/k8s-lnd-msvc:latest
 docker push <your_reg_id>.dkr.ecr.us-west-2.amazonaws.com/k8s-lnd-msvc:latest
+```
 
 If nothing fails, a Docker image should be pushed now in your AWS account's container registry.
 
