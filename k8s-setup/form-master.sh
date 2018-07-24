@@ -10,6 +10,7 @@ S3BUCKET="${2}"
 
 yum install -y docker kubeadm git jq
 #sed -E -i -e "s/^OPTIONS=\"/OPTIONS=\"--iptables=false --ip-masq=false /" /etc/sysconfig/docker
+#sed -E -i -e "s/^(KUBELET_EXTRA_ARGS=)/\1\"--cloud-provider=aws\"/" /etc/sysconfig/kubelet
 systemctl enable kubelet.service
 systemctl enable docker.service
 systemctl start docker.service
