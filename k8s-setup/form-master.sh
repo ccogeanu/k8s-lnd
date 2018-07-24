@@ -58,9 +58,9 @@ while [[ ${ret} -eq 0 ]]; do
 done
 
 mkdir -p /root/getkong
-cd /root/getkong
+pushd /root/getkong
 git clone https://github.com/Kong/kong-dist-kubernetes.git
-cd kong-dist-kubernetes
+pushd kong-dist-kubernetes
 kubectl --kubeconfig=/root/.kube/config create -f postgres.yaml
 ret=0
 while [[ ${ret} -eq 0 ]]; do
@@ -70,7 +70,8 @@ while [[ ${ret} -eq 0 ]]; do
 done
 kubectl --kubeconfig=/root/.kube/config create -f kong_migration_postgres.yaml
 kubectl --kubeconfig=/root/.kube/config create -f kong_postgres.yaml
-
+popd
+popd
 
 kubectl --kubeconfig=/root/.kube/config create -f lnd-msvc.yaml
 kubectl --kubeconfig=/root/.kube/config expose deployment.apps/lnd-msvc
