@@ -62,6 +62,10 @@
              "chmod +x form-master.sh\n",
              "/root/k8s-setup/form-master.sh \"", {"Ref":"AWS::StackId"} , "\" \"", {"Ref":"s3clustersetup"} , "\" > form-master.log 2>&1\n",
              "echo \"Done! stackName: ", {"Ref":"AWS::StackName"}, " stackId: ", {"Ref": "AWS::StackId"}, "\" >> form-master.log\n",
+             "cd /root\n",
+             "git clone https://github.com/ccogeanu/k8s-lnd.git\n",
+             "git config --global user.name \"Corneliu COGEANU\"\n",
+             "git config --global user.email \"corneliu.cogeanu@gmail.com\"\n",
 
              "# Signal the status from cfn-init\n",
              "/opt/aws/bin/cfn-signal -e $? ",
