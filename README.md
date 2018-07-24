@@ -1,5 +1,7 @@
 # k8s-lnd
 
+This repository provides the scripts and the instructions for deploying a small kubernetes cluster composed of a master and a node on the AWS cloud and deploying a small microservice proxied by Kong.
+
 The scripts and the guide in this repository were developed on the AWS region us-west-2. They can be customized for a different or a configurable region, but at this time that's the only supported region.
 
 ## Create the microservice docker image
