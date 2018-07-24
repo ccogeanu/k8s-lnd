@@ -1,13 +1,11 @@
 #!/bin/bash
 
-if [[ ${#} -ne 3 ]]; then
-  echo "Usage <cmd> <PublicDNS> <PublicIP> <PrimaryPrivateIP>"
-  exit 1
-fi
+PUBLIC_DNS=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
+PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 
-PUBLIC_DNS="${1}"
-PUBLIC_IP="${2}"
-PRIVATE_IP="${3}"
+PRIVATE_DNS=$(curl -s http://169.254.169.254/latest/meta-data/local-hostname)
+PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+echo ${PUBLIC_DNS} ${PUBLIC_IP} ${PRIVATE_DNS} ${PRIVATE_IP}
 
 mkdir -p /root/getkong
 pushd /root/getkong
