@@ -35,6 +35,10 @@ kubectl --kubeconfig=/root/.kube/config cluster-info
 
 eval $(aws ecr get-login --no-include-email --region=us-west-2 | sed -E -e "s/docker login -u (\S+) -p (\S+) https:\/\/(\S+)/export DOCKER_USER='\1' DOCKER_PASSWORD='\2' DOCKER_SERVER='\3'/")
 kubectl --kubeconfig=/root/.kube/config create secret docker-registry ecr --docker-server="${DOCKER_SERVER}" --docker-username="${DOCKER_USER}" --docker-password="${DOCKER_PASSWORD}"
+kubectl --kubeconfig=/root/.kube/config get serviceaccounts default -o yaml > /tmp/sa.yaml
+echo -e "imagePullSecrets:\n- name: ecr\n" >> /tmp/sa.yaml
+kubectl --kubeconfig=/root/.kube/config replace serviceaccount default -f ./sa.yaml
+
 
 eval $(aws ecr get-login --no-include-email --region=us-west-2 --registry-ids 602401143452 | sed -E -e "s/docker login -u (\S+) -p (\S+) https:\/\/(\S+)/export DOCKER_USER='\1' DOCKER_PASSWORD='\2' DOCKER_SERVER='\3'/")
 kubectl --kubeconfig=/root/.kube/config --namespace=kube-system create secret docker-registry ecr-aws-vpc-cni --docker-server="${DOCKER_SERVER}" --docker-username="${DOCKER_USER}" --docker-password="${DOCKER_PASSWORD}"
