@@ -89,4 +89,4 @@ fi
 echo "Route ID: ${KONG_ROUTE_ID}"
 
 curl -s -XPOST -d'{"s":"some lower case string"}' -H "Host: ${PUBLIC_DNS}" "http://${KONG_PROXY_IP}:${KONG_PROXY_PORT}/uppercase"
-curl -s -XPOST -d'{"s":"some lower case string"}' -H "Host: ${PUBLIC_DNS}" "http://${KONG_PROXY_IP}:${KONG_PROXY_PORT}/count"
+#curl -s -XPOST -d'{"s":"some lower case string"}' -H "Host: ${PUBLIC_DNS}" "http://${KONG_PROXY_IP}:${KONG_PROXY_PORT}/count"
