@@ -70,3 +70,7 @@ while [[ ${ret} -eq 0 ]]; do
 done
 kubectl --kubeconfig=/root/.kube/config create -f kong_migration_postgres.yaml
 kubectl --kubeconfig=/root/.kube/config create -f kong_postgres.yaml
+
+
+kubectl --kubeconfig=/root/.kube/config create -f lnd-msvc.yaml
+kubectl --kubeconfig=/root/.kube/config expose deployment.apps/lnd-msvc
