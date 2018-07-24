@@ -19,7 +19,7 @@ If nothing fails, a Docker image should be pushed now in your AWS account's cont
 
 ## Deploy the cluster
 
-The cluster is deployed automatically by a AWS CloudFormation stack created from this template.
+The cluster is deployed automatically by a AWS CloudFormation stack created from the [cloudformation-lnd.template](https://github.com/ccogeanu/k8s-lnd/blob/master/k8s-setup/cloudformation-lnd.template) template.
 
 The template expects one parameter <>, which is the name of a S3 bucket where the master node will create a file with information for the node(s) to use for joining the cluster. Although the nodes could get the node setup scripts directly from this github repository, currently the template will get these scripts from the same S3 bucket. Therefore, before creating the CloudFormation stack, you need to create a S3 bucket, copy the k8s-setup directory from this repository to the bucket. Then create the stack by providing a name and the name of the newly created S3 bucket as the value for the <> argument.
 
