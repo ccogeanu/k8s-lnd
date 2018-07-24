@@ -8,7 +8,7 @@ fi
 STACKID=$(echo -n "${1}" | sha1sum | cut -f 1 -d ' ')
 S3BUCKET="${2}"
 
-yum install -y docker kubeadm git
+yum install -y docker kubeadm git jq
 #sed -E -i -e "s/^OPTIONS=\"/OPTIONS=\"--iptables=false --ip-masq=false /" /etc/sysconfig/docker
 systemctl enable kubelet.service
 systemctl enable docker.service
@@ -59,19 +59,4 @@ unset DOCKER_PASSWORD
 kubectl --kubeconfig=/root/.kube/config create -f lnd-msvc.yaml
 kubectl --kubeconfig=/root/.kube/config expose deployment.apps/lnd-msvc
 
-mkdir -p /root/getkong
-pushd /root/getkong
-git clone https://github.com/Kong/kong-dist-kubernetes.git
-pushd kong-dist-kubernetes
-kubectl --kubeconfig=/root/.kube/config create -f postgres.yaml
-ret=0
-while [[ ${ret} -eq 0 ]]; do
-  sleep 5
-  kubectl --kubeconfig=/root/.kube/config get pods | egrep postgres | sed -E -e "s/\s+/:/g" | cut -d ':' -f 3 | egrep -v "^Running$"
-  ret=${?}
-done
-kubectl --kubeconfig=/root/.kube/config create -f kong_migration_postgres.yaml
-kubectl --kubeconfig=/root/.kube/config create -f kong_postgres.yaml
-popd
-popd
 
