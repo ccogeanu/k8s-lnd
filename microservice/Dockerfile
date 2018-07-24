@@ -13,4 +13,4 @@ RUN apk --no-cache add curl
 EXPOSE 8080
 WORKDIR /root/
 COPY --from=builder ${SOURCE_LOCATION} .
-CMD ["./app"] 
+CMD ["/root/go/app"] 
