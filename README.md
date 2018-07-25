@@ -27,7 +27,10 @@ The cluster is deployed automatically by a AWS CloudFormation stack created from
 The template expects a value for the parameter **s3clustersetup**, which is the name of a S3 bucket where the master node will create a file with information for the node(s) to use for joining the cluster. Although the nodes could get the node setup scripts directly from this github repository, currently the template will get these scripts from the same S3 bucket. Therefore, before creating the CloudFormation stack, do the following:
   - create a S3 bucket
   - copy the k8s-setup directory from this repository to the bucket
-  - then create the stack by providing a name and the name of the newly created S3 bucket as the value for the **s3clustersetup** template argument.
+  - then create the stack by providing a name and the name of the newly created S3 bucket as the value for the **s3clustersetup** template argument
+```
+aws cloudformation create-stack --stack-name <<MY_STACK_NAME>> --template-body file://k8s-setup/cloudformation-lnd.template --parameters ParameterKey=s3clustersetup,ParameterValue=i<<S3_BUCKET_ID>> --capabilities CAPABILITY_IAM
+```
 
 The following actions are performed during the deployment of the cluster:
   - the necessary packages (k8s, docker, ebtables, etc.) are installed on top of a Amazon Linux 2 AMI
