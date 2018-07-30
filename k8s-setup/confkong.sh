@@ -1,5 +1,14 @@
 #!/bin/bash
 
+if [[ ${#} -ne 1 ]]; then
+  echo "Usage <cmd> elb_public_dns"
+  exit 1
+fi
+
+echo "${@}"
+
+ELB_PUBLIC_DNS="${1}"
+
 PUBLIC_DNS=$(curl -s http://169.254.169.254/latest/meta-data/public-hostname)
 PUBLIC_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 
@@ -79,7 +88,7 @@ fi
 echo "Service ID: ${KONG_SVC_ID}"
 
 
-curl -s -X POST -H "Content-Type: application/json" "http://${KONG_ADMIN_IP}:${KONG_ADMIN_PORT}/routes" -d"{\"hosts\": [\"${PUBLIC_DNS}\"], \"paths\": [\"/count\", \"/uppercase\"], \"strip_path\":false, \"service\": {\"id\":${KONG_SVC_ID}}}" > /tmp/routeid.json
+curl -s -X POST -H "Content-Type: application/json" "http://${KONG_ADMIN_IP}:${KONG_ADMIN_PORT}/routes" -d"{\"hosts\": [\"${PRIVATE_DNS}\", \"${ELB_PUBLIC_DNS}\"], \"paths\": [\"/count\", \"/uppercase\"], \"strip_path\":false, \"service\": {\"id\":${KONG_SVC_ID}}}" > /tmp/routeid.json
 KONG_ROUTE_ID=$(jq '.id' /tmp/routeid.json)
 if [[ "${KONG_ROUTE_ID}" == "null" ]]; then
   echo "Error creating the kong route"
@@ -88,5 +97,5 @@ if [[ "${KONG_ROUTE_ID}" == "null" ]]; then
 fi
 echo "Route ID: ${KONG_ROUTE_ID}"
 
-curl -s -XPOST -d'{"s":"some lower case string"}' -H "Host: ${PUBLIC_DNS}" "http://${KONG_PROXY_IP}:${KONG_PROXY_PORT}/uppercase"
+curl -s -XPOST -d'{"s":"some lower case string"}' -H "Host: ${ELB_PUBLIC_DNS}" "http://${KONG_PROXY_IP}:${KONG_PROXY_PORT}/uppercase"
 #curl -s -XPOST -d'{"s":"some lower case string"}' -H "Host: ${PUBLIC_DNS}" "http://${KONG_PROXY_IP}:${KONG_PROXY_PORT}/count"

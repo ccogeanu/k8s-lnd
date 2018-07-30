@@ -4,6 +4,17 @@
   "Description" : "LND devop test",
 
   "Parameters": {
+
+    "vpcid": {
+      "Type": "AWS::EC2::VPC::Id",
+      "Description": "The vpcid for the target group"
+    },
+
+    "subnets": {
+      "Type": "List<AWS::EC2::Subnet::Id>",
+      "Description": "The list of subnets for the load balancer"
+    },
+
     "s3clustersetup": {
       "Default": "lnd-cluster-setup",
       "Description" : "S3 bucket holding the setup scripts",
@@ -42,7 +53,7 @@
         "ImageId": "ami-a9d09ed1",
         "InstanceType": "t2.micro",
         "IamInstanceProfile": { "Ref": "NodeInstanceProfile" },
-        "SecurityGroups": [{"Ref":"ClusterSecurityGroup"}],
+        "SecurityGroups": [{"Ref":"ClusterSecurityGroup"}, {"Ref":"ExtSecurityGroup"}],
         "SourceDestCheck": "false",
         "KeyName": "devop-lnd",
         "UserData": { "Fn::Base64" : { "Fn::Join" : [ "", [
@@ -59,11 +70,18 @@
              "mkdir /root/k8s-setup\n",
              "cd /root/k8s-setup\n",
              "aws s3 cp --recursive s3://lnd-cluster-setup/k8s-setup . \n",
+
              "chmod +x form-master.sh\n",
-             "chmod +x confkong.sh\n",
              "/root/k8s-setup/form-master.sh \"", {"Ref":"AWS::StackId"} , "\" \"", {"Ref":"s3clustersetup"} , "\" > form-master.log 2>&1\n",
-             "/root/k8s-setup/confkong.sh >> confkong.log \n",
+
+             "chmod +x confkong.sh\n",
+             "/root/k8s-setup/confkong.sh \"", {"Fn::GetAtt":["Balancer1", "DNSName"]}, "\" >> confkong.log \n",
+
+             "chmod +x reg-elb.sh\n",
+             "/root/k8s-setup/reg-elb.sh \"", {"Ref":"AWS::Region"} , "\" \"", {"Ref":"AWS::StackName"}, "\" \"", {"Ref":"TargetGroupKongProxy"}, "\" \"", {"Ref":"ExtSecurityGroup"}, "\" >> reg-elb.log\n",
+
              "echo \"Done! stackName: ", {"Ref":"AWS::StackName"}, " stackId: ", {"Ref": "AWS::StackId"}, "\" >> form-master.log\n",
+
              "echo cd /root >> setup-git.cmd\n",
              "echo git clone https://github.com/ccogeanu/k8s-lnd.git >> setup-git.cmd\n",
              "echo git config --global user.name \"Corneliu COGEANU\" >> setup-git.cmd\n",
@@ -112,7 +130,7 @@
         "ImageId": "ami-a9d09ed1",
         "InstanceType": "t2.micro",
         "IamInstanceProfile": { "Ref": "NodeInstanceProfile" },
-        "SecurityGroups": [{"Ref":"ClusterSecurityGroup"}],
+        "SecurityGroups": [{"Ref":"ClusterSecurityGroup"}, {"Ref":"ExtSecurityGroup"}],
         "SourceDestCheck": "false",
         "KeyName": "devop-lnd",
         "UserData": { "Fn::Base64" : { "Fn::Join" : [ "", [
@@ -326,28 +344,84 @@
       }
     },
 
+    "ExtSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Ext front security group",
+        "SecurityGroupIngress": [
+          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0"}
+        ]
+      }
+    },
+
     "ClusterSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
+        "GroupName": {"Fn::Join":["-",[{"Ref":"AWS::StackName"}, "ClusterSecurityGroup"]]},
         "GroupDescription": "Cluster security group",
         "SecurityGroupIngress": [
-          {"IpProtocol" : "tcp", "FromPort" : "6443", "ToPort" : "6443", "CidrIp" : "0.0.0.0/0"},
-          {"IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "CidrIp" : "0.0.0.0/0"},
-          {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0"},
-          {"IpProtocol" : "-1", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "0.0.0.0/0"}
+          {"IpProtocol":"-1" , "FromPort":"0" , "ToPort":"65535" , "SourceSecurityGroupName":{"Fn::Join":["-",[{"Ref":"AWS::StackName"}, "ClusterSecurityGroup"]]} }
+        ]
+      }
+    },
+
+    "Balancer1": {
+      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+      "Properties": {
+        "Subnets":  {"Ref":"subnets"},
+        "Type": "network"
+      }
+    },
+
+    "TargetGroupKongProxy": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Port": 30000,
+        "Protocol": "TCP",
+        "VpcId": {"Ref":"vpcid"}
+      }
+    },
+
+    "Listener1": {
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+      "Properties": {
+        "LoadBalancerArn": {"Ref": "Balancer1"},
+        "Port": "80",
+        "Protocol": "TCP",
+        "DefaultActions": [
+          {
+            "Type": "forward",
+            "TargetGroupArn": {"Ref": "TargetGroupKongProxy"}
+          }
         ]
       }
     }
   },
 
   "Outputs": {
-    "MasterNode" : {
-      "Description" : "Master Node IPs",
-      "Value" : { "Fn::Join" : [" : ", [{ "Fn::GetAtt" : [ "MasterInstance", "PublicDnsName" ]}, {"Fn::GetAtt": ["MasterInstance", "PublicIp"]}, {"Fn::GetAtt": ["MasterInstance", "PrivateIp"]}]] }
+    "MasterDns" : {
+      "Description" : "Master Node DNS",
+      "Value" : { "Fn::GetAtt" : [ "MasterInstance", "PublicDnsName" ] }
     },
-    "Node" : {
-      "Description" : "Node IPs",
-      "Value" : { "Fn::Join" : [" : ", [{ "Fn::GetAtt" : [ "NodeInstance", "PublicDnsName" ]}, {"Fn::GetAtt": ["NodeInstance", "PublicIp"]}, {"Fn::GetAtt": ["NodeInstance", "PrivateIp"]}]] }
+    "MasterIp" : {
+      "Description" : "Master Node Public IP",
+      "Value" : { "Fn::GetAtt" : [ "MasterInstance", "PublicIp" ] }
+    },
+    "MasterPrivateIp" : {
+      "Description" : "Master Node Private IP",
+      "Value" : { "Fn::GetAtt" : [ "MasterInstance", "PrivateIp" ] }
+    },
+    "NodeDns" : {
+      "Description" : "Node DNS",
+      "Value" : { "Fn::GetAtt" : [ "NodeInstance", "PublicDnsName" ]}
+    },
+    "NodeIp" : {
+      "Description" : "Node Public IP",
+      "Value" : { "Fn::GetAtt" : [ "NodeInstance", "PublicIp" ]}
+    },
+    "NodePrivateIp" : {
+      "Description" : "Node Private IP",
+      "Value" : { "Fn::GetAtt" : [ "NodeInstance", "PrivateIp" ]}
     }
   }
 }

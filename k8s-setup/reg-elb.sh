@@ -1,11 +1,23 @@
 #!/bin/bash
 
+if [[ ${#} -ne 4 ]]; then
+  echo "Usage <cmd> region stack_name elb_target_group ext_security_group"
+  exit 1
+fi
+
+echo "${@}"
+
 AWS_REGION="${1}"
 AWS_STACK_NAME="${2}"
 ELB_TARGET_GROUP_ARN="${3}"
-ELB_TARGET_GROUP_ARN="arn:aws:elasticloadbalancing:us-west-2:166720137260:targetgroup/elbs-Target-1QGO5WMD45SV6/2a9b058964c59b98"
+EXT_SECURITY_GROUP="${4}"
 
-KONG_PROXY_PORT=$(kubectl get service kong-proxy --no-headers -o custom-columns="N:.spec.ports[0].nodePort")
+echo "-----DEBUG-----"
+kubectl --kubeconfig=/root/.kube/config get all -o wide --all-namespaces
+echo "-----DEBUG-----"
+
+KONG_PROXY_PORT=$(kubectl --kubeconfig=/root/.kube/config get service kong-proxy --no-headers -o custom-columns="N:.spec.ports[0].nodePort")
+echo "Kong local proxy port: ${KONG_PROXY_PORT}"
 
 INSTANCES=$(aws ec2 describe-instances \
 	            --region "${AWS_REGION}" \
@@ -15,10 +27,11 @@ INSTANCES=$(aws ec2 describe-instances \
              | jq -r '.Reservations[].Instances[].InstanceId' \
 	   )
 for i in ${INSTANCES}; do
-  echo ${i}
+  echo "ELB target registration ${i}:${KONG_PROXY_PORT}"
   aws --region "${AWS_REGION}" \
 	  elbv2 register-targets \
 	         --target-group-arn "${ELB_TARGET_GROUP_ARN}" \
 	         --targets "Id=${i},Port=${KONG_PROXY_PORT}"
 done
 
+aws --region "${AWS_REGION}" ec2 authorize-security-group-ingress --group-name "${EXT_SECURITY_GROUP}" --protocol tcp --port "${KONG_PROXY_PORT}"  --cidr 0.0.0.0/0

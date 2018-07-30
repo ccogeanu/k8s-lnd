@@ -29,7 +29,9 @@ The template expects a value for the parameter **s3clustersetup**, which is the 
   - copy the k8s-setup directory from this repository to the bucket
   - then create the stack by providing a name and the name of the newly created S3 bucket as the value for the **s3clustersetup** template argument
 ```
-aws cloudformation create-stack --stack-name <<MY_STACK_NAME>> --template-body file://k8s-setup/cloudformation-lnd.template --parameters ParameterKey=s3clustersetup,ParameterValue=<<S3_BUCKET_ID>> --capabilities CAPABILITY_IAM
+VPCID=$(aws ec2 describe-vpcs --filter "Name=isDefault,Values=true" | jq -r '.Vpcs[0].VpcId')
+SUBNETS=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPCID}" | jq -r '.Subnets[].SubnetId' | tr '\n' ',' | sed -E -e 's/,$//')
+aws cloudformation create-stack --stack-name <<MY_STACK_NAME>> --template-body file://k8s-setup/cloudformation-lnd.template --parameters "ParameterKey=s3clustersetup,ParameterValue=<<S3_BUCKET_ID>>" "ParameterKey=subnets,ParameterValue=\"${SUBNETS}\"" "ParameterKey=vpcid,ParameterValue=${VPCID}" --capabilities CAPABILITY_IAM
 ```
 
 The following actions are performed during the deployment of the cluster:
@@ -40,3 +42,7 @@ The following actions are performed during the deployment of the cluster:
   - Kong is deployed
   - Kong is configured as a proxy to the deployed microservice
   - a few requests will be send to the Kong proxy to verify the service is accessible
+
+## Test the deployment
+
+curl "http://$(aws elbv2 describe-load-balancers | jq -r '.LoadBalancers[0].DNSName')/count" -d '{"s":"some lower case string"}'
