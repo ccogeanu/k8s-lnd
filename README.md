@@ -44,7 +44,7 @@ The following actions are performed during the deployment of the cluster:
   - Kong is configured as a proxy to the deployed microservice with the ELB's DNS and the master's private DNS as the proxied hosts
   - a few requests will be send to the Kong proxy to verify the service is accessible
   - the ELB will be configured from the master node to target the 2 EC2 instances on the Kong proxy's dynamically assigned port
-  - one of the security groups, holding the rules for external access, will be configure from the master node to accept connections on the Kong proxy's port from the Internet.
+  - one of the security groups, holding the rules for external access, will be configured from the master node to accept connections on the Kong proxy's port from the Internet.
 
 ## Test the deployment
 
