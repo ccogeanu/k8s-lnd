@@ -35,13 +35,16 @@ aws cloudformation create-stack --stack-name <<MY_STACK_NAME>> --template-body f
 ```
 
 The following actions are performed during the deployment of the cluster:
-  - the necessary packages (k8s, docker, ebtables, etc.) are installed on top of a Amazon Linux 2 AMI
+  - the CloudFormation template will create 2 EC2 instances, a node IAM role, 2 security groups and a network Elastic Load Balancer.
+  - for each EC2 instance, the necessary packages (k8s, docker, ebtables, etc.) are installed on top of a Amazon Linux 2 AMI
   - the cluster is configured by kubeadm
   - the cluster CNI's is configured with Calico
-  - a small microservice image is being deployed and it port exposed as a service in the cluster; the image is hosted in the AWS's account container registry, pushed there earlier as described in the above section
+  - a small microservice image is being deployed and it's port exposed as a service in the cluster; the image is hosted in the AWS's account container registry, pushed there earlier as described in the above section
   - Kong is deployed
-  - Kong is configured as a proxy to the deployed microservice
+  - Kong is configured as a proxy to the deployed microservice with the ELB's DNS and the master's private DNS as the proxied hosts
   - a few requests will be send to the Kong proxy to verify the service is accessible
+  - the ELB will be configured from the master node to target the 2 EC2 instances on the Kong proxy's dynamically assigned port
+  - one of the security groups, holding the rules for external access, will be configure from the master node to accept connections on the Kong proxy's port from the Internet.
 
 ## Test the deployment
 
