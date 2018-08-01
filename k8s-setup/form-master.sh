@@ -1,24 +1,9 @@
 #!/bin/bash
 
-if [[ ${#} -ne 2 ]]; then
-  echo "Usage <cmd> stackid bucketid"
-  exit 1
-fi
-
-STACKID=$(echo -n "${1}" | sha1sum | cut -f 1 -d ' ')
-S3BUCKET="${2}"
-
-yum install -y docker kubeadm git jq
-#sed -E -i -e "s/^OPTIONS=\"/OPTIONS=\"--iptables=false --ip-masq=false /" /etc/sysconfig/docker
-cp aws.config /etc/k8s-aws.config
-sed -E -i -e "s:^(KUBELET_EXTRA_ARGS=):\1--cloud-provider aws --cloud-config /etc/k8s-aws.config:" /etc/sysconfig/kubelet
-systemctl enable kubelet.service
-systemctl enable docker.service
-systemctl start docker.service
 echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
 
 kubeadm config images pull
-kubeadm init --pod-network-cidr=192.168.0.0/16 | tee kubeadminit.log | egrep "kubeadm join" > "kubeadmjoin-${STACKID}.cmd"
+kubeadm init --pod-network-cidr=192.168.0.0/16 | tee kubeadminit.log | egrep "kubeadm join" > "kubeadmjoin-${STACK_ID}.cmd"
 ret=${?}
 if [[ "${ret}" -ne 0 ]]; then
   echo "kubeadm init failed"
@@ -31,7 +16,7 @@ mkdir -p /home/ec2-user/.kube
 sudo cp -i /etc/kubernetes/admin.conf /home/ec2-user/.kube/config
 sudo chown ec2-user:ec2-user /home/ec2-user/.kube/config
 
-aws s3 cp "kubeadmjoin-${STACKID}.cmd" "s3://${S3BUCKET}"
+aws s3 cp "kubeadmjoin-${STACK_ID}.cmd" "s3://${SETUP_BUCKET}"
 
 kubectl --kubeconfig=/root/.kube/config cluster-info
 

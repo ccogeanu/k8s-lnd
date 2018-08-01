@@ -28,9 +28,9 @@
       "Metadata": {
         "AWS::CloudFormation::Init": {
           "configSets": {
-            "InstallAndRun": ["Install"]
+            "InstallAndRun": ["K8sRepo", "Install", "Setup"]
           },
-          "Install": {
+          "K8sRepo": {
             "files": {
               "/etc/yum.repos.d/k8s-s3.repo": {
                 "content": { "Fn::Join" : ["", [
@@ -46,6 +46,64 @@
                 "group": "root" 
               }
             }
+          },
+          "Install": {
+            "packages": {
+              "yum": {
+                "jq": [],
+                "git": [],
+                "docker": [],
+                "kubeadm": []
+              }
+            },
+            "services": {
+              "sysvinit": {
+                "docker": {
+                  "enabled": "true",
+                  "ensureRunning": "true"
+                },
+                "kubelet": {
+                  "enabled": "true",
+                  "ensureRunning": "true"
+                }
+              }
+            }
+          },
+          "Setup": {
+            "files": {
+              "/etc/cloud-formation.env": {
+                "content": { "Fn::Join" : ["", [
+                    "AWS_REGION=\"", {"Ref":"AWS::Region"}, "\"\n",
+                    "STACK_ID=\"", {"Ref":"AWS::StackId"}, "\"\n",
+                    "STACK_NAME=\"", {"Ref":"AWS::StackName"}, "\"\n",
+                    "SETUP_BUCKET=\"", {"Ref":"s3clustersetup"}, "\"\n",
+                    "ELB_DNS=\"", {"Fn::GetAtt":["Balancer1", "DNSName"]}, "\"\n",
+                    "KONG_PROXY_TARGET_GROUP=\"", {"Ref":"TargetGroupKongProxy"}, "\"\n",
+                    "EXT_SECURITY_GROUP=\"", {"Ref":"ExtSecurityGroup"}, "\"\n"
+                ]]},
+                "mode": "000644",
+                "owner": "root",
+                "group": "root",
+              },
+              "/tmp/form-master.sh": {
+                "source": "s3://lnd-cluster-setup/k8s-setup/form-master.sh",
+                "mode": "000644",
+                "owner": "root",
+                "group": "root",
+              },
+              "/tmp/confkong.sh": {
+                "source": "s3://lnd-cluster-setup/k8s-setup/confkong.sh",
+                "mode": "000644",
+                "owner": "root",
+                "group": "root",
+              },
+              "/tmp/reg-elb.sh": {
+                "source": "s3://lnd-cluster-setup/k8s-setup/reg-elb.sh",
+                "mode": "000644",
+                "owner": "root",
+                "group": "root",
+              }
+            }
           }
         }
       },
@@ -57,7 +115,8 @@
         "SourceDestCheck": "false",
         "KeyName": "devop-lnd",
         "UserData": { "Fn::Base64" : { "Fn::Join" : [ "", [
-             "#!/bin/bash -xe\n",
+             "#!/bin/bash -x\n",
+             "### /bin/bash -xe\n",
              "yum update -y aws-cfn-bootstrap\n",
 
              "# Install the files and packages from the metadata\n",
@@ -67,25 +126,17 @@
              "         --configsets InstallAndRun ",
              "         --region ", { "Ref" : "AWS::Region" }, "\n",
 
-             "mkdir /root/k8s-setup\n",
-             "cd /root/k8s-setup\n",
-             "aws s3 cp --recursive s3://lnd-cluster-setup/k8s-setup . \n",
+             "source /etc/cloud-formation.env \n",
 
-             "chmod +x form-master.sh\n",
-             "/root/k8s-setup/form-master.sh \"", {"Ref":"AWS::StackId"} , "\" \"", {"Ref":"s3clustersetup"} , "\" > form-master.log 2>&1\n",
+             "/bin/bash /tmp/form-master.sh > form-master.log 2>&1 \n",
 
-             "chmod +x confkong.sh\n",
-             "/root/k8s-setup/confkong.sh \"", {"Fn::GetAtt":["Balancer1", "DNSName"]}, "\" >> confkong.log \n",
+             "# chmod +x confkong.sh\n",
+             "# /root/k8s-setup/confkong.sh \"", {"Fn::GetAtt":["Balancer1", "DNSName"]}, "\" >> confkong.log \n",
 
-             "chmod +x reg-elb.sh\n",
-             "/root/k8s-setup/reg-elb.sh \"", {"Ref":"AWS::Region"} , "\" \"", {"Ref":"AWS::StackName"}, "\" \"", {"Ref":"TargetGroupKongProxy"}, "\" \"", {"Ref":"ExtSecurityGroup"}, "\" >> reg-elb.log\n",
+             "# chmod +x reg-elb.sh\n",
+             "# /root/k8s-setup/reg-elb.sh \"", {"Ref":"AWS::Region"} , "\" \"", {"Ref":"AWS::StackName"}, "\" \"", {"Ref":"TargetGroupKongProxy"}, "\" \"", {"Ref":"ExtSecurityGroup"}, "\" >> reg-elb.log\n",
 
-             "echo \"Done! stackName: ", {"Ref":"AWS::StackName"}, " stackId: ", {"Ref": "AWS::StackId"}, "\" >> form-master.log\n",
-
-             "echo cd /root >> setup-git.cmd\n",
-             "echo git clone https://github.com/ccogeanu/k8s-lnd.git >> setup-git.cmd\n",
-             "echo git config --global user.name \"Corneliu COGEANU\" >> setup-git.cmd\n",
-             "echo git config --global user.email \"corneliu.cogeanu@gmail.com\" >> setup-git.cmd\n",
+             "echo \"Done! stackName: \"${STACK_NAME}\" stackId: \"${STACK_ID}\" >> form-master.log \n",
 
              "# Signal the status from cfn-init\n",
              "/opt/aws/bin/cfn-signal -e $? ",
@@ -144,11 +195,11 @@
              "         --configsets InstallAndRun ",
              "         --region ", { "Ref" : "AWS::Region" }, "\n",
 
-             "mkdir /root/k8s-setup\n",
-             "cd /root/k8s-setup\n",
-             "aws s3 cp --recursive s3://lnd-cluster-setup/k8s-setup . \n",
-             "chmod +x form-node.sh\n",
-             "/root/k8s-setup/form-node.sh \"", {"Ref":"AWS::StackId"} , "\" \"", {"Ref":"s3clustersetup"} , "\" > form-node.log 2>&1\n",
+             "# mkdir /root/k8s-setup\n",
+             "# cd /root/k8s-setup\n",
+             "# aws s3 cp --recursive s3://lnd-cluster-setup/k8s-setup . \n",
+             "# chmod +x form-node.sh\n",
+             "# /root/k8s-setup/form-node.sh \"", {"Ref":"AWS::StackId"} , "\" \"", {"Ref":"s3clustersetup"} , "\" > form-node.log 2>&1\n",
              "echo \"Done! stackName: ", {"Ref":"AWS::StackName"}, " stackId: ", {"Ref": "AWS::StackId"}, "\" >> form-node.log\n",
 
              "# Signal the status from cfn-init\n",
