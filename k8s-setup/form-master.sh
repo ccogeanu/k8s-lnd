@@ -1,7 +1,5 @@
 #!/bin/bash
 
-source /etc/cloud-formation.env
-
 echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
 
 kubeadm config images pull
