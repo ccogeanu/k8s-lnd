@@ -1,9 +1,11 @@
 #!/bin/bash
 
+STACK_ID_TOKEN=$(echo -n "${STACK_ID}" | sha1sum | cut -f 1 -d ' ')
+
 echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
 
 kubeadm config images pull
-kubeadm init --pod-network-cidr=192.168.0.0/16 | tee kubeadminit.log | egrep "kubeadm join" > "kubeadmjoin-${STACK_ID}.cmd"
+kubeadm init --pod-network-cidr=192.168.0.0/16 | tee kubeadminit.log | egrep "kubeadm join" > "kubeadmjoin-${STACK_ID_TOKEN}.cmd"
 ret=${?}
 if [[ "${ret}" -ne 0 ]]; then
   echo "kubeadm init failed"
@@ -16,7 +18,7 @@ mkdir -p /home/ec2-user/.kube
 sudo cp -i /etc/kubernetes/admin.conf /home/ec2-user/.kube/config
 sudo chown ec2-user:ec2-user /home/ec2-user/.kube/config
 
-aws s3 cp "kubeadmjoin-${STACK_ID}.cmd" "s3://${SETUP_BUCKET}"
+aws s3 cp "kubeadmjoin-${STACK_ID_TOKEN}.cmd" "s3://${SETUP_BUCKET}"
 
 kubectl --kubeconfig=/root/.kube/config cluster-info
 
