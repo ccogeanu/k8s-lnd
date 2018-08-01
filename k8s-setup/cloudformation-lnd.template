@@ -73,32 +73,44 @@
             "files": {
               "/etc/cloud-formation.env": {
                 "content": { "Fn::Join" : ["", [
-                    "AWS_REGION=\"", {"Ref":"AWS::Region"}, "\"\n",
-                    "STACK_ID=\"", {"Ref":"AWS::StackId"}, "\"\n",
-                    "STACK_NAME=\"", {"Ref":"AWS::StackName"}, "\"\n",
-                    "SETUP_BUCKET=\"", {"Ref":"s3clustersetup"}, "\"\n",
-                    "ELB_DNS=\"", {"Fn::GetAtt":["Balancer1", "DNSName"]}, "\"\n",
-                    "KONG_PROXY_TARGET_GROUP=\"", {"Ref":"TargetGroupKongProxy"}, "\"\n",
-                    "EXT_SECURITY_GROUP=\"", {"Ref":"ExtSecurityGroup"}, "\"\n"
+                    "export AWS_REGION=\"", {"Ref":"AWS::Region"}, "\"\n",
+                    "export STACK_ID=\"", {"Ref":"AWS::StackId"}, "\"\n",
+                    "export STACK_NAME=\"", {"Ref":"AWS::StackName"}, "\"\n",
+                    "export SETUP_BUCKET=\"", {"Ref":"s3clustersetup"}, "\"\n",
+                    "export ELB_DNS=\"", {"Fn::GetAtt":["Balancer1", "DNSName"]}, "\"\n",
+                    "export KONG_PROXY_TARGET_GROUP=\"", {"Ref":"TargetGroupKongProxy"}, "\"\n",
+                    "export EXT_SECURITY_GROUP=\"", {"Ref":"ExtSecurityGroup"}, "\"\n"
                 ]]},
                 "mode": "000644",
                 "owner": "root",
                 "group": "root",
               },
               "/tmp/form-master.sh": {
-                "source": "s3://lnd-cluster-setup/k8s-setup/form-master.sh",
+                "source": "https://raw.githubusercontent.com/ccogeanu/k8s-lnd/wip/k8s-setup/form-master.sh",
+                "mode": "000644",
+                "owner": "root",
+                "group": "root",
+              },
+              "/tmp/form-node.sh": {
+                "source": "https://raw.githubusercontent.com/ccogeanu/k8s-lnd/wip/k8s-setup/form-node.sh",
                 "mode": "000644",
                 "owner": "root",
                 "group": "root",
               },
               "/tmp/confkong.sh": {
-                "source": "s3://lnd-cluster-setup/k8s-setup/confkong.sh",
+                "source": "https://raw.githubusercontent.com/ccogeanu/k8s-lnd/wip/k8s-setup/confkong.sh",
                 "mode": "000644",
                 "owner": "root",
                 "group": "root",
               },
               "/tmp/reg-elb.sh": {
-                "source": "s3://lnd-cluster-setup/k8s-setup/reg-elb.sh",
+                "source": "https://raw.githubusercontent.com/ccogeanu/k8s-lnd/wip/k8s-setup/reg-elb.sh",
+                "mode": "000644",
+                "owner": "root",
+                "group": "root",
+              },
+              "/tmp/lnd-msvc.yaml": {
+                "source": "https://raw.githubusercontent.com/ccogeanu/k8s-lnd/wip/k8s-setup/lnd-msvc.yaml",
                 "mode": "000644",
                 "owner": "root",
                 "group": "root",
@@ -126,17 +138,14 @@
              "         --configsets InstallAndRun ",
              "         --region ", { "Ref" : "AWS::Region" }, "\n",
 
+             "mkdir -p /root/setup && cd /root/setup \n",
+
              "source /etc/cloud-formation.env \n",
-
              "/bin/bash /tmp/form-master.sh > form-master.log 2>&1 \n",
+             "/bin/bash /tmp/confkong.sh >> confkong.log \n",
+             "/bin/bash /tmp/reg-elb.sh >> reg-elb.log \n",
 
-             "# chmod +x confkong.sh\n",
-             "# /root/k8s-setup/confkong.sh \"", {"Fn::GetAtt":["Balancer1", "DNSName"]}, "\" >> confkong.log \n",
-
-             "# chmod +x reg-elb.sh\n",
-             "# /root/k8s-setup/reg-elb.sh \"", {"Ref":"AWS::Region"} , "\" \"", {"Ref":"AWS::StackName"}, "\" \"", {"Ref":"TargetGroupKongProxy"}, "\" \"", {"Ref":"ExtSecurityGroup"}, "\" >> reg-elb.log\n",
-
-             "echo \"Done! stackName: \"${STACK_NAME}\" stackId: \"${STACK_ID}\" >> form-master.log \n",
+             "echo \"Done! stackName: \\\"${STACK_NAME}\\\" stackId: \\\"${STACK_ID}\\\" >> form-master.log \n",
 
              "# Signal the status from cfn-init\n",
              "/opt/aws/bin/cfn-signal -e $? ",

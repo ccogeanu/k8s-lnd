@@ -45,7 +45,7 @@ unset DOCKER_SERVER
 unset DOCKER_USER
 unset DOCKER_PASSWORD
 
-kubectl --kubeconfig=/root/.kube/config create -f lnd-msvc.yaml
+kubectl --kubeconfig=/root/.kube/config create -f /tmp/lnd-msvc.yaml
 kubectl --kubeconfig=/root/.kube/config expose deployment.apps/lnd-msvc
 
 

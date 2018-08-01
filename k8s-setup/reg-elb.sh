@@ -1,15 +1,7 @@
 #!/bin/bash
 
-if [[ ${#} -ne 4 ]]; then
-  echo "Usage <cmd> region stack_name elb_target_group ext_security_group"
-  exit 1
-fi
-
-echo "${@}"
-
-AWS_REGION="${1}"
-AWS_STACK_NAME="${2}"
-ELB_TARGET_GROUP_ARN="${3}"
+AWS_STACK_NAME="${STACK_NAME}"
+ELB_TARGET_GROUP_ARN="${KONG_PROXY_TARGET_GROUP}"
 EXT_SECURITY_GROUP="${4}"
 
 echo "-----DEBUG-----"
